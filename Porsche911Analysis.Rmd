@@ -1,0 +1,196 @@
+---
+title: "Porsche 911 Analysis"
+Name: Jonathan Nguyen
+date: "2023-10-31"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+## Introduction
+
+-   The database we are going to use is a data set that contains specifications for every Porsche 911 model since its debut in 1964.
+
+-   The Porsche 911 or 911 (Pronounced as "Nine-Eleven") is a famous and iconic sports car produced by Porsche AG becoming one of the most recognizable and enduring sports car designs in the world.
+
+-   With almost 60 years of racing lineage the 911 has gone though several changes in order to maintain the symbol of a high-performance sports car.
+
+-   ![](911.jpg){width="579"}
+
+## Questions
+
+-   Given the data can we observe the performance changes from the 911's debut in 1964 until today?
+-   This includes max speed vs time, horsepower output vs time, max speed vs horsepower over time, max weight vs time and 0-100km/h vs Weight to Power Ratio.
+
+## Setup
+
+-   For the statistical analysis to occur we must import the database and the necessary libraries.
+-   readr for the database
+-   ggplot2 for the models
+-   dplyr for the statistical analysis
+
+```{r setup, include=FALSE}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(plotly)
+porsche_911 <- read_csv("porsche_911.csv")
+```
+
+## General Observations
+
+-   The data base consists of 61 variables and 288 observations.
+-   The 288 observations are 288 separate makes of the 911 over the last 60 years.
+-   Of the 61 variables in the data base we only care about
+-   maximum_speed (max speed in kph)
+-   acceleration_0-100km/h (a general time measurement in seconds used to tell how fast a car is in a straight line)
+-   weight_to_power_ratio (a measurement used to tell a cars overall performance usually in kg/hp)
+-   power (in Horsepower/HP)
+-   generation
+-   start_of_production
+
+## Creating a new data frame
+
+-   First we need to create a new data frame with all the necessary variables
+-   Second we need to make sure our data is ready for analysis by removing any unnecessary info
+
+```{r}
+# New data frame
+porsche911 = data.frame(
+  subset(porsche_911,select = c("generation",
+                               "engine",
+                               "start_of_production",
+                               "maximum_speed",
+                               "acceleration_0-100km/h",
+                               "weight-to-power_ratio", "power", "max_weight")))
+
+# CLEANING
+
+# Rename
+colnames(porsche911)[colnames(porsche911) == "generation"] = "Generation"
+colnames(porsche911)[colnames(porsche911) == "engine"] = "Engine"
+colnames(porsche911)[colnames(porsche911) == "start_of_production"] = "Year"
+colnames(porsche911)[colnames(porsche911) == "maximum_speed"] = "MaxSpeed"
+colnames(porsche911)[colnames(porsche911) == "acceleration_0.100km.h"] = "ZeroToHundred"
+colnames(porsche911)[colnames(porsche911) == "weight.to.power_ratio"] = "WPR"
+colnames(porsche911)[colnames(porsche911) == "power"] = "Power"
+colnames(porsche911)[colnames(porsche911) == "max_weight"] = "MaxWeight"
+
+# OMIT
+porsche911 = na.omit(porsche911)
+
+# Getting rid of written measurements
+porsche911$WPR = gsub("kg/Hp.*", "", porsche911$WPR)
+porsche911$Power = gsub("Hp.*", "", porsche911$Power)
+porsche911$ZeroToHundred = gsub("-.*", "", porsche911$ZeroToHundred)
+
+# Change String columns to Numeric
+porsche911$Year = as.numeric(porsche911$Year)
+porsche911$MaxSpeed = as.numeric(porsche911$MaxSpeed)
+porsche911$ZeroToHundred = as.numeric(porsche911$ZeroToHundred)
+porsche911$WPR = as.numeric(porsche911$WPR)
+porsche911$Power = as.numeric(porsche911$Power)
+```
+
+## Max Speed vs Time
+-   With this analysis we can see how the 911's max speed has developed over time.
+
+```{r}
+summary(lm(porsche911$MaxSpeed~porsche911$Year))
+```
+
+-   With a P-Value of \<2.2e-16 the relationship between when the car was made and max speed is statistically significant.
+-   According to the regression model for every year the max speed increases by 1.695 km/h
+-   What this means is that the 911's max speed gets faster by 1.695km every year, statistically.
+
+```{r}
+ggplotly(ggplot(porsche911, aes(x = Year, y = MaxSpeed, color = Generation, text = Engine)) +
+  geom_point(alpha = 5/8) +
+  labs(x = "Year", y = "Maximum Speed(Km/h)") +
+  ggtitle("Maximum Speed of the Porsche 911 models Over Time"))
+
+```
+
+-   You can see that within each generation the maximum speed does differ even though each car is technically the same car.
+-   What causes the maximum speed difference is usually whether the car is a higher performance version or not.
+-   The only out liar to this is the 992 Dakar which is a Rally version of the 911. (Rally is racing usually done in regular streets or off road) 
+
+## Horsepower vs Time
+-   With this analysis we can observe the improvements in horsepower of the 911.
+```{r}
+summary(lm(porsche911$Power~porsche911$Year))
+```
+
+-   The P-Value is the same again which is quite interesting.
+-   Interpreting the data we can see that for every year the amount of horsepower increases by 6.553 Horsepower which is quite a lot.
+
+```{r}
+ggplotly(ggplot(porsche911, aes(x = Year, y = Power, color = Engine, text = Generation)) +
+  geom_point(alpha = 5/8) +
+  labs(x = "Year", y = "Horsepower (Hp)") +
+  ggtitle("Total Horsepower of the Porsche 911 models Over Time"))
+```
+
+-   As you can see in the model the total horsepower does increase with respect to time with almost a "flat bottom" being the base models and the out liars being the performance GT versions.
+
+## Max Speed vs Horsepower Over Time
+-   Speed matters a lot in a race, with this analysis we can observe how with time Porsche has been able to increase the amount of horsepower while still increasing the max speed with time.
+```{r}
+summary(lm(porsche911$MaxSpeed~porsche911$Power + porsche911$Year))
+```
+
+-   This linear regression model takes into account of the effect of horsepower has on max speed and then the model year of the car.
+-   Again the p-value is the same which is still surprising!
+-   Although the P-Value is for year variable respectively is different.
+
+## Max Weight vs Time
+
+-   As time passes cars usually get heavier this is mostly due to added technology and more horsepower which requires bigger tires for more grip.
+-   For sports cars this is generally a bad thing so car manufacturers try to save weight with lighter materials such as carbon fiber
+
+```{r}
+summary(lm(porsche911$MaxWeight~porsche911$Year))
+```
+
+-   P-Value is still the same showing significance.
+-   According the the data for every year the 911 goes up in weight by 10.73 kg which is a lot of weight for a car, especially for a sports car where added weight means performance losses.
+
+```{r}
+ggplotly(ggplot(porsche911, aes(x = Year, y = MaxWeight, color = Engine, text = Generation)) +
+  geom_point(alpha = 5/8) +
+  labs(x = "Year", y = "Horsepower (Hp)") +
+  ggtitle("Total Weight of the Porsche 911 models Over Time"))
+```
+
+-   We can see according to the model that less performance oriented versions of a certain generation are heavier than their more performance oriented counterparts.
+-   The cabriolet of the 911's are the convertible makes which means they require machinery in order to remove the sunroof a car making them heavier.
+
+## 0-100Km/h vs Weight to Power Ratio over time
+
+-   Power to weight ratio/ Weight to Power Ratio is the common measurement for car enthusiasts to judge whether a car's performance compared to another car is better or not.
+-   To shorten things up in this case regarding Weight to Power the smaller the number the faster the car can accelerate to maximum speed because there is less mass to move (inertia).
+-   We can see this in accordance with the 911's 0-100Kmph time (lower means faster!)
+-   With this analysis we can see how Porsche has developed the 911 in respect to horsepower due to the amount of weight being added on each year.
+
+```{r}
+summary(lm(porsche911$ZeroToHundred~porsche911$WPR + porsche911$Year))
+```
+-   The regression model the P-value stays the same.
+-   As we can tell from the data the zero to one hundred time increases when the weight to power ratio increases but not by a lot.
+-   For the years the zero to one hundred times decrease as time goes by.
+
+```{r}
+ggplotly(ggplot(porsche911, aes(x = WPR, y = ZeroToHundred, color = Generation, text = Engine)) +
+  geom_point(alpha = 5/8) +
+  labs(x = "Weight to Power Ratio", y = "0-100Km/h Time (Seconds)") +
+  ggtitle("0-100Km/h Times of the 911 w/ Respect to Weight to Power Ratio(Lower = Better)"))
+```
+- According to the data even though the older 911s weighed less the new generation of 911's make a lot more horsepower which over came its heavy build allowing for faster 0-100kph times.
+
+## Conclusion
+-   Overtime the 911's top speed has become faster
+-   It's total horsepower output is also much higher over time (besides the 992 Dakar)
+-   As Horsepower increased with time the max speed has followed along
+-   As time passed the max weight of the 911 has increased which means Porsche needs to produce more power with respect to its weight in order to be faster than its older counter parts.
+-   According to each 911's 0-100 times with respect to its power to weight ratio Porsche has done just that with the 911.
